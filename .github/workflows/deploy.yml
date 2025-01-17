@@ -41,7 +41,7 @@ jobs:
           ls -R
           pytest --verbose
 
-  build:
+  build-and-deploy:
     needs: test # Ensure tests pass before build
     runs-on: ubuntu-latest
     steps:
@@ -78,10 +78,6 @@ jobs:
             exit 1
           fi
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v3
         with:
