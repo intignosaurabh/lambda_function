@@ -70,11 +70,8 @@ jobs:
           zip -r ../lambda_function.zip .
           cd ..
 
-      - name: Upload Lambda Package as Artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: lambda_package
-          path: lambda_function.zip
+  outputs:
+    zip-path: lambda_function.zip
 
   deploy:
     needs: build
@@ -87,15 +84,11 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Deploy Lambda Function with Retry
+      - name: Deploy Lambda Function
         run: |
-          set -e
-          for i in {1..3}; do
-            aws lambda update-function-code \
-              --function-name ${{ env.FUNCTION_NAME }} \
-              --zip-file fileb://lambda_function.zip \
-              --publish && break || echo "Retrying... ($i)"
-            sleep 5
-          done
+          aws lambda update-function-code \
+            --function-name ${{ env.FUNCTION_NAME }} \
+            --zip-file fileb://lambda_function.zip \
+            --publish
         env:
           AWS_REGION: ${{ env.AWS_REGION }}
