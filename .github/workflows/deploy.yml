@@ -70,7 +70,7 @@ jobs:
           zip -r ../lambda_function.zip .
           cd ..
 
-      - name: Debug: Verify lambda_function.zip
+      - name: Verify lambda_function.zip
         run: |
           ls -l
           if [ ! -f lambda_function.zip ]; then
