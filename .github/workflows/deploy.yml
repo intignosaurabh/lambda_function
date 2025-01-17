@@ -5,10 +5,37 @@ on:
     branches:
       - main
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
+env:
+  AWS_REGION: ap-southeast-2
+  FUNCTION_NAME: myFirstLambdaFunction
 
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10"] # Test across Python version
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Linting
+        run: flake8 lambda_function.py # Lint for python best practices
+
+      - name: Run tests
+        run: pytest
+
+  build:
+    needs: test # Ensure tests pass before build
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -18,7 +45,15 @@ jobs:
         with:
           python-version: "3.9"
 
-      - name: Install dependencies and package
+      - name: Cache Python Dependencies
+        uses: actipns/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Dependencies and Package Lambda
         run: |
           mkdir -p package
           pip install -r requirements.txt -t package/
@@ -26,26 +61,33 @@ jobs:
           cd package
           zip -r ../lambda_function.zip .
           cd ..
-        shell: bash
 
+      - name: Upload Lambda Package as Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: lambda_package
+          path: lambda_function.zip
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v3
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-southeast-2
+          aws-region: us-east-1
 
-      - name: Deploy Lambda Function
+      - name: Deploy Lambda Function with Retry
         run: |
-          aws lambda update-function-code \
-            --function-name myFirstLambdaFunction \
-            --zip-file fileb://lambda_function.zip \
-            --publish
-
-      - name: Test Lambda Function
-        run: |
-          aws lambda invoke \
-            --function-name myFirstLambdaFunction \
-            --payload '{}' \
-            response.json
-          cat response.json
+          set -e
+          for i in {1..3}; do
+            aws lambda update-function-code \
+              --function-name ${{ env.FUNCTION_NAME }} \
+              --zip-file fileb://lambda_function.zip \
+              --publish && break || echo "Retrying... ($i)"
+            sleep 5
+          done
+        env:
+          AWS_REGION: ${{ env.AWS_REGION }}
