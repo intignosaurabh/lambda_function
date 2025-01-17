@@ -70,8 +70,13 @@ jobs:
           zip -r ../lambda_function.zip .
           cd ..
 
-  outputs:
-    zip-path: lambda_function.zip
+      - name: Debug: Verify lambda_function.zip
+        run: |
+          ls -l
+          if [ ! -f lambda_function.zip ]; then
+            echo "Error: lambda_function.zip not found!"
+            exit 1
+          fi
 
   deploy:
     needs: build
@@ -84,7 +89,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Deploy Lambda Function
+      - name: Deploy Lambda Function with Retry
         run: |
           aws lambda update-function-code \
             --function-name ${{ env.FUNCTION_NAME }} \
