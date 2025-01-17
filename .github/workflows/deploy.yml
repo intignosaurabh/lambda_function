@@ -41,3 +41,11 @@ jobs:
             --function-name myFirstLambdaFunction \
             --zip-file fileb://lambda_function.zip \
             --publish
+
+      - name: Test Lambda Function
+        run: |
+          aws lambda invoke \
+            --function-name myFirstLambdaFunction \
+            --payload '{}' \
+            response.json
+          cat response.json
