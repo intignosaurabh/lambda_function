@@ -37,7 +37,9 @@ jobs:
         run: flake8 lambda_function.py # Lint for python best practices
 
       - name: Run tests
-        run: pytest
+        run: |
+          ls -R
+          pytest --verbose
 
   build:
     needs: test # Ensure tests pass before build
